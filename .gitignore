@@ -1,0 +1,19 @@
+# Build and binary files
+/build/
+/CMakeFiles/
+/Makefile
+/CMakeCache.txt
+/*.cmake
+/*.so
+/*.o
+/*.a
+/*.out
+
+# IDE files
+*.swp
+*.swo
+*.log
+
+# Backup files
+*~
+
