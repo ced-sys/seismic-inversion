@@ -1,0 +1,8 @@
+Network: IU
+Station: SSPA
+Channel: BHZ
+Start Time: 2020-01-07T08:25:26.019538Z
+End Time: 2020-01-07T08:35:25.994538Z
+Sampling Rate: 40.0Hz
+Number of Samples: 24000
+Duration: 599.98 seconds
