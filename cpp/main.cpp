@@ -5,3 +5,150 @@
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
+
+struct SeismicTrace{
+	std::vector<float> data;
+	float samplingRate;
+	int numSamples;
+
+	float getTime(int index) const{
+		return index / samplingRate;
+	}
+};
+
+struct InversionResut{
+	std::vector<float> reflectivity;
+	std::vector<float> impedance;
+	std::vector<float> syntheticTrace;
+	float errorRMS;
+};
+
+
+SeismicTrace readBinaryData(const std::string& filename){
+	SeismicTrace trace;
+
+	std::ifstream file(filename, std::ios::binary);
+	if(!file){
+		throw std::runtime_error("Cannot open file:" +filename);
+	}
+
+	int32_t numSamples;
+	float samplingRate;
+
+	file.read(reinterpret_cast<char*>(&numSamples), sizeof(int32_t));
+	file.read(reinterpret_cast<char*>(&samplingRate), sizeof(float));
+
+	trace.numSamples=numSamples;
+	trace.samplingRate=samplingRate;
+
+	trace.data.resize(numSamples);
+	file.read(reinterpret_cast<char*>(trace.data.data()),
+			numSamples*sizeof(float));
+
+	file.close();
+
+	std::cout<<"Loaded"<<numSamples<<"samples\n";
+	std::cout<<"Smpling rate:"<<samplingRate<<"Hz\n";
+
+	return trace
+}
+
+SeismicTrace readCSVData(const std::string& filename){
+	SeismicTrace trace;
+
+	std::ifstream file(filename);
+	if (!file) {
+		throw std::runtime_error("Cannot open file;"+filename);
+	}
+
+	std::string line;
+	std::getline(file, line);
+
+	while (std::getline(file, line)){
+		size_t comma=line.find(',');
+		if (comma != std::string::npos){
+			float time=std::stof(line.substr(0, comma));
+			float amp=std::stof(line.substr(comma + 1));
+			times.push_back(time);
+			amplitudes.push_back(amp);
+		}
+	}
+
+	trace.data=amplitudes;
+	trace.numSamples=amplitudes.size();
+	if (times.size()>1){
+		trace.samplingRate=1.0f /(times[1]-times[0]);
+	}
+
+	file.close();
+
+	return trace;
+}
+
+void nomralizeTrace(std::vector<float>& data){
+	float maxAbs=0.0f;
+	for(float val: data){
+		maxAbs=std::max(maxAbs, std::abs(val));
+	}
+
+	if (maxAbs>0.0f){
+		for (float& val: data){
+			val /=maxAbs;
+		}
+	}
+}
+
+std::vector<float> createRickerWavelet(float frequency, float samplingRate,
+		float duration){
+	int numSamples=static_cast<int>(duration * samplingRate);
+	std::vector<float> wavelet(numSamples);
+
+	float dt=1.0f /samplingRate;
+	float center=duration /2.0f;
+
+	for (int i=0; i<numSamples; ++i){
+		float t=i*dt-center;
+		float arg=M_PI*M_PI*frequency*frequency*t*t;
+		wavelet[i]=(1.0f-2.0f * arg)*std::exp(-arg);
+	}
+
+	float maxVal=*std::max_element(wavelet.begin(), wavelet.end());
+	for (float& val : wavelet){
+		val /=maxVal;
+	}
+
+	return wavelet;
+}
+
+std::vector<float> convolve(const std::vector<float>& signal, 
+		const std::vector<float>& kernel){
+	int n=signal.size();
+	int m=kernel.size();
+	std::vector<float> result(n, 0.0f);
+
+	for(int i=0; i<n; i++){
+		for(int j=0; j<m; ++j){
+			int idx=i-j+ m/2;
+			if (idx>=0 && idx<n){
+				result[i]+=signal[idx]* kernel[j];
+			}
+		}
+	}
+	return result;
+}
+
+float crossCorrelation(const st::vector<float>& a, 
+		const std::vector<float>& b, int lag){
+	float sum=0.0f;
+	int n=std::min(a.size(), b.size());
+
+	for (int i=0; i<n-std::abs(lag); ++i){
+		int idx_a=(lag >=0) ? i+lag:i;
+		int idx_b=(lag >=0) ? i:i-lag;
+		if (idx_a >=0 && idx_a <a.size() && idx_b >=0 && idx_b <b.size()){
+			sum+= a[idx_a]*b [idx_b];
+		}
+	}
+	return sum;
+}
+
