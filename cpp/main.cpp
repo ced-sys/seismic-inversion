@@ -152,3 +152,73 @@ float crossCorrelation(const st::vector<float>& a,
 	return sum;
 }
 
+InversionResult sparseSpike Inversion(const SeismicTrace& trace,
+		const std::vector<float>& wavelet,
+		float sparsityWeight=0.1f){
+	InversionResult result;
+	int n=trace.numSamples;
+
+	std::cout<<"\n[Inversion] Starting sparse spike inversion...\n";
+	std::cout<<" Trace samples: "<<n<<"\n";
+
+	result.reflectivoty.resize(n, 0.0f);
+
+	int maxIterations=std::min(200, n/10);
+	std::vector<float> residual=trace.data;
+
+	for (int iter=0; iter<maxIterations; ++iter){
+		float maxCorr=0.0f;
+		int maxIdx=0;
+
+		for(int i=wavelet.size()/2; i<n-wavelet.size()/2; ++i){
+			float corr=0.0f;
+			for(size_t j=0; j<wavelet.size(); ++j){
+				int idx=i-wavelet.size()/2+j;
+				if (idx>=0 && idx<n){
+					corr+=residual[idx]*wavelet[j];
+				}
+			}
+
+			if (std::abs(corr) >std::abs(maxCorr)){
+				maxCorr=corr;
+				maxIdx=i;
+			}
+		}
+
+		float spikeAmp=maxCorr*(1.0f-sparsityWeight);
+		result.reflectivity[maxIdx]+=spikeAmp;
+
+		for (size_t j=0; j<wavelet.size(); ++j){
+			int idx=maxIdx-wavelet.size()/2+j;
+			if (idx>=0 && idx<n){
+				residual[idx]-=spikeAmp* wavelet[j];
+			}
+		}
+
+		if (iter % 50==0){
+			std::cout<<" Iteration "<<iter<<"/"maxIterations<<"/r"<<std::flush;
+		}
+	}
+
+	std::cout<<" Iteration "<<maxIterations<<"/"<<maxIterations<<"\n";
+
+	result.syntheticTrace=convolve(result.reflectivity, wavelet);
+
+	float sumSqError=0.0f;
+	for(int i=0; i<n; ++i){
+		float diff=trace.data[i]-result.syntheticTrace[i];
+		sumSqError+=diff* diff;
+	}
+
+	result.errorRMS=std::sqrt(sumSqError/n);
+
+	result.impedance.resize(n);
+	result.impedance[0]=1.0f;
+	for(int i=1; i<n; ++i){
+		result.impedance[i]=result.impedance[i-1]*(1.0f +result.reflectivity[i]);
+	}
+
+	std::cout<<"Inversion complete! RMS Error:"<<result.errorRMS<<"\n";
+
+	return result;
+}
