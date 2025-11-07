@@ -222,3 +222,46 @@ InversionResult sparseSpike Inversion(const SeismicTrace& trace,
 
 	return result;
 }
+
+void saveResults(const InversionResult& result, const SeismicTrace& original,
+		const std::string& filename){
+	std::ofstream file(filename);
+	if (!file){
+		std::cerr <<"Cannot create output file:"<<filename<<"\n";
+		return;
+	}
+
+	file<<"sample,original_trace,synthetic_trace,reflectivity,impedance\n";
+
+	for(size_t i=0;i<original.data.size();++i){
+		file<<i<<","
+			<<original.data[i]","
+			<<result.syntheticTrace[i]<<","
+			<<result.reflectivity[i]<<","
+			<<result.impedance[i]<<"\n";
+	}
+
+	file.close();
+	std::cout<<"Results saved to:"<<filename<<"\n";
+}
+
+void printStatistics(const InversionResult& result){
+	std::cout<<"INVERSION STATISTICS";
+
+	int numSpikes=0;
+	for(float val:result.reflectivty){
+		if(std::abs(val)>0.001f) numSpikes++;
+	}
+
+	float minImp=*std::min_element(result.impedance.begin(),
+			result.impedance.end());
+	float maxImp=*std::max_element(result.impedance.begin(),
+			result.impedance.end());
+
+	std::cout<<std::fixed<<std::setprecision(4);
+	std::cout<<"RMS Error:  "<<result.errorRMS<<"\n";
+	std::cout<<"Number of Spikes:  "<<numSpikes<<"\n";
+	std::cout<<"Impedance Range:   "<<minImp<<"to"<<maxImp<<"\n";
+	std::cout<<"Impedance Contrast: "<<(maxImp-minImp) / minImp*100<<"%\n";
+	std::cout<<std::string(60, "=")<<"\n";
+}
