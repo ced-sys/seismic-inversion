@@ -2,7 +2,6 @@
  * Seismic Inversion Tool
  * Reads real seismic data and performs acoustic impedance inversion
  * 
- * Author: Undergrad Project
  * Description: This tool demonstrates fundamental seismic inversion concepts
  *              using real earthquake data from IRIS
  */
